@@ -17,7 +17,6 @@
   ******************************************************************************
   */
 /* USER CODE END Header */
-
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 /* USER CODE BEGIN Includes */
@@ -75,6 +74,25 @@ void HAL_MspInit(void)
   /* USER CODE BEGIN MspInit 1 */
 
   /* USER CODE END MspInit 1 */
+}
+
+void HAL_TIM_Base_MspInit(TIM_HandleTypeDef *htim)
+{
+  if (htim->Instance == TIM3)
+  {
+    __HAL_RCC_TIM3_CLK_ENABLE();
+    HAL_NVIC_SetPriority(TIM3_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(TIM3_IRQn);
+  }
+}
+
+void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef *htim)
+{
+  if (htim->Instance == TIM3)
+  {
+    __HAL_RCC_TIM3_CLK_DISABLE();
+    HAL_NVIC_DisableIRQ(TIM3_IRQn);
+  }
 }
 
 /* USER CODE BEGIN 1 */

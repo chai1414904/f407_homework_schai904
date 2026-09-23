@@ -1,0 +1,4 @@
+{
+  "cmake.sourceDirectory": "${workspaceFolder}/stm32f407igh6",
+  "cmake.configureOnOpen": false
+}

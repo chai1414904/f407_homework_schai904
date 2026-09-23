@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "STM32F407 C Board (STLink)",
+      "type": "cortex-debug",
+      "request": "launch",
+      "servertype": "openocd",
+      "serverpath": "openocd",
+      "cwd": "${workspaceFolder}/stm32f407igh6",
+      "executable": "${workspaceFolder}/stm32f407igh6/build/Debug/board.elf",
+      "preLaunchTask": "cmake-build-debug",
+      "configFiles": ["interface/stlink.cfg", "target/stm32f4x.cfg"],
+      "device": "STM32F407IGHx",
+      "runToEntryPoint": "main"
+    },
+    {
+      "name": "STM32F407 C Board (DAP)",
+      "type": "cortex-debug",
+      "request": "launch",
+      "servertype": "openocd",
+      "serverpath": "openocd",
+      "cwd": "${workspaceFolder}/stm32f407igh6",
+      "executable": "${workspaceFolder}/stm32f407igh6/build/Debug/board.elf",
+      "preLaunchTask": "cmake-build-debug",
+      "configFiles": ["interface/cmsis-dap.cfg", "target/stm32f4x.cfg"],
+      "device": "STM32F407IGHx",
+      "runToEntryPoint": "main"
+    }
+  ]
+}
