@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "cmake-configure-debug",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--preset", "Debug"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "cmake-build-debug",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--build", "--preset", "Debug"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "dependsOn": "cmake-configure-debug",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "flash-stlink",
+      "type": "process",
+      "command": "openocd",
+      "args": ["-f", "interface/stlink.cfg", "-f", "target/stm32f4x.cfg", "-c", "program build/Debug/board.elf verify reset exit"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "dependsOn": "cmake-build-debug",
+      "problemMatcher": []
+    },
+    {
+      "label": "flash-dap",
+      "type": "process",
+      "command": "openocd",
+      "args": ["-f", "interface/cmsis-dap.cfg", "-f", "target/stm32f4x.cfg", "-c", "program build/Debug/board.elf verify reset exit"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "dependsOn": "cmake-build-debug",
+      "problemMatcher": []
+    }
+  ]
+}
