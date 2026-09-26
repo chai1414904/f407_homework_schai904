@@ -31,7 +31,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define LED_ON  GPIO_PIN_SET
+#define LED_OFF GPIO_PIN_RESET
+#define RX_QUEUE_SIZE 256U
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -45,9 +47,11 @@ UART_HandleTypeDef huart6;
 /* USER CODE BEGIN PV */
 static uint8_t rx_byte;
 static uint8_t selected_led = 0;
-
-#define LED_ON  GPIO_PIN_SET
-#define LED_OFF GPIO_PIN_RESET
+/* One interrupt producer and one main-loop consumer. */
+static volatile uint8_t rx_queue[RX_QUEUE_SIZE];
+static volatile uint16_t rx_head = 0;
+static volatile uint16_t rx_tail = 0;
+static volatile uint8_t rx_fault = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -69,7 +73,7 @@ static void ProcessCommand(uint8_t byte)
         return;
     }
 
-     if (byte == '0' || byte == '1')
+    if (byte == '0' || byte == '1')
     {
         GPIO_PinState level =
             (byte == '1') ? LED_ON : LED_OFF;
@@ -83,7 +87,35 @@ static void ProcessCommand(uint8_t byte)
             HAL_GPIO_WritePin(GPIOH, GPIO_PIN_11, level);
         }
     }
-      selected_led = 0;
+    selected_led = 0;
+}
+
+/* Called only from the UART receive callback. */
+static void QueuePush(uint8_t byte)
+{
+    uint16_t next = (uint16_t)((rx_head + 1U) % RX_QUEUE_SIZE);
+
+    if (next == rx_tail)
+    {
+        rx_fault = 1; /* Full: stop rather than silently overwrite commands. */
+        return;
+    }
+
+    rx_queue[rx_head] = byte;
+    rx_head = next;
+}
+
+/* Called only from the main loop. */
+static uint8_t QueuePop(uint8_t *byte)
+{
+    if (rx_tail == rx_head)
+    {
+        return 0;
+    }
+
+    *byte = rx_queue[rx_tail];
+    rx_tail = (uint16_t)((rx_tail + 1U) % RX_QUEUE_SIZE);
+    return 1;
 }
 /* USER CODE END 0 */
 
@@ -118,8 +150,12 @@ int main(void)
   MX_GPIO_Init();
   MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
-HAL_GPIO_WritePin(GPIOH, GPIO_PIN_12, LED_OFF);
-HAL_GPIO_WritePin(GPIOH, GPIO_PIN_11, LED_OFF);
+  HAL_GPIO_WritePin(GPIOH, GPIO_PIN_12, LED_OFF);
+  HAL_GPIO_WritePin(GPIOH, GPIO_PIN_11, LED_OFF);
+  if (HAL_UART_Receive_IT(&huart6, &rx_byte, 1) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -129,13 +165,21 @@ HAL_GPIO_WritePin(GPIOH, GPIO_PIN_11, LED_OFF);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-      HAL_StatusTypeDef status =
-        HAL_UART_Receive(&huart6, &rx_byte, 1, 100);
+    uint8_t byte;
 
-    if (status == HAL_OK)
+    if (rx_fault)
     {
-        HAL_UART_Transmit(&huart6, &rx_byte, 1, 100);
-        ProcessCommand(rx_byte);
+      Error_Handler();
+    }
+
+    if (QueuePop(&byte))
+    {
+      /* Keep blocking transmission and command handling out of the ISR. */
+      if (HAL_UART_Transmit(&huart6, &byte, 1, 100) != HAL_OK)
+      {
+        Error_Handler();
+      }
+      ProcessCommand(byte);
     }
   }
   /* USER CODE END 3 */
@@ -253,7 +297,28 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if (huart->Instance != USART6)
+  {
+    return;
+  }
 
+  QueuePush(rx_byte);
+  /* Each one-byte interrupt reception must be armed again. */
+  if (HAL_UART_Receive_IT(huart, &rx_byte, 1) != HAL_OK)
+  {
+    rx_fault = 1;
+  }
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+  if (huart->Instance == USART6)
+  {
+    rx_fault = 1;
+  }
+}
 /* USER CODE END 4 */
 
 /**
